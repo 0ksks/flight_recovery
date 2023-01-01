@@ -1,17 +1,56 @@
-import torch
-
-from net.GraphEncoder import GAT
-from utils.DataIO import get_data, transform_problems_into_tensor
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from RL.Rollout import AeroplanesRollout, DAGRollout
+from RL.Env import MultiAeroplane, DAGmap
+import numpy as np
 
 if __name__ == "__main__":
-    model = GAT(
-        num_of_layers=2, num_heads_per_layer=[1, 1], num_features_per_layer=[1, 2, 3]
+    aeroplane_num = 4
+    node_num = 16
+    graph = {
+        0: [4, 5],
+        1: [6],
+        2: [7],
+        3: [8, 9],
+        4: [10],
+        5: [11],
+        6: [12],
+        7: [13],
+        8: [14],
+        9: [15],
+        10: [],
+        11: [],
+        12: [],
+        13: [],
+        14: [],
+        15: [],
+    }
+    dag_map = DAGmap(DAGmap.np_array_adj_list(graph))
+    multi_aeroplane = MultiAeroplane(
+        [0, 1, 2, 3],
+        [12, 13, 14, 15],
     )
-    model = model.to(DEVICE)
-    problems, solutions = get_data("data")
-    node_features, edge_index = transform_problems_into_tensor(problems[0], DEVICE)
-    print(node_features, edge_index)
-    output = model((node_features, edge_index))
-    print(output)
+
+    def aeroplane_test_actor(state_, env_state_, mask_):
+        mask_ = np.array(mask_)
+        prob = np.random.rand(mask_.shape[0])
+        prob[mask_] = 0
+        return prob
+
+    aeroplanes_rollout = AeroplanesRollout(dag_map, multi_aeroplane)
+    multi_aeroplane_actor = [aeroplane_test_actor for _ in range(aeroplane_num)]
+    aeroplanes_rollout.register_network(multi_aeroplane_actor)
+    aeroplane_episode = aeroplanes_rollout.rollout_episode(
+        episode_steps=8,
+    )
+    print(*aeroplane_episode, sep="\n")
+
+    def dag_test_actor(state_, mask_):
+        mask_ = np.array(mask_)
+        prob = np.random.rand(mask_.shape[0])
+        prob[mask_] = 0
+        # print(prob, mask_)
+        return prob
+
+    dag_rollout = DAGRollout(dag_map, 0)
+    dag_rollout.register_network(dag_test_actor)
+    dag_episode = dag_rollout.rollout_episode(episode_steps=8)
+    print(*dag_episode, sep="\n")

@@ -1,18 +1,53 @@
 from typing import Union
+from collections import defaultdict
 import numpy as np
-from RL import AdjList
-from MultiDecision import MultiAct
 import torch as th
+
+from .MultiDecision import MultiAct
 
 
 class DAGmap:
-    def __init__(self, adj_list: AdjList, reward=1):
+    def __init__(
+        self, adj_list: dict[int, Union[list[int], np.ndarray, th.Tensor]], reward=1
+    ):
         self.adj_list = adj_list
         self.n_states = len(self.adj_list)
         self.reward = reward
         self.__visited = np.zeros(self.n_states).astype(bool)
         self.actor_network = None
         self.critic_network = None
+
+    @staticmethod
+    def adj_list_2_edge_idx(
+        adj_list: dict[int, Union[list[int], np.ndarray, th.Tensor]]
+    ) -> list[list[int]]:
+        edge_idx = []
+        for start in adj_list:
+            for end in adj_list[start]:
+                edge_idx.append([start, end])
+        edge_idx = np.array(edge_idx).T.tolist()
+        return edge_idx
+
+    @staticmethod
+    def edge_idx_2_adj_list(
+        edge_idx: list[list[int]],
+    ) -> dict[int, Union[list[int], np.ndarray, th.Tensor]]:
+        adj_list = defaultdict(list)
+        cols = len(edge_idx[0])
+        for i in range(cols):
+            adj_list[edge_idx[0][i]].append(edge_idx[1][i])
+        adj_list = dict(adj_list)
+        for i in range(cols):
+            if edge_idx[1][i] not in adj_list.keys():
+                adj_list[edge_idx[1][i]] = []
+        return adj_list
+
+    @staticmethod
+    def np_array_adj_list(adj_list: dict[int, list[int]]):
+        adj_list_array: dict[int, np.ndarray] = {}
+        for k, v in adj_list.items():
+            adj_list_array[k] = np.array(v).astype(int)
+        return adj_list_array
 
     def visit(self, state) -> bool:
         updated = not self.__visited[np.argwhere(state == 1)].all()
@@ -207,57 +242,3 @@ class MultiAeroplane:
         states = list(map(lambda x: x.get_state(), self.aeroplanes))
         states = th.tensor(states).unsqueeze(0).transpose(0, 1)
         return states
-
-
-if __name__ == "__main__":
-    # dag = DAGmap(
-    #     {
-    #         0: array([1, 2]).astype(int),
-    #         1: array([2, 3]).astype(int),
-    #         2: array([4]).astype(int),
-    #         3: array([4]).astype(int),
-    #         4: array([]).astype(int),
-    #     }
-    # )
-    # # dag.visited[1] = True
-    # # dag.visited[2] = True
-    # dag.step([0])
-    # res = dag.step([1, 2])
-    # print(res)
-    # res = dag.step([4])
-    # print(res)
-    # print(dag.avail_next(0))
-
-    # aeroplane_test = Aeroplane(1, 4)
-    # print(aeroplane_test.get_state())
-    # print(aeroplane_test.step(2, None))
-    # print(aeroplane_test.get_state())
-    # print(aeroplane_test.step(3, None))
-    # print(aeroplane_test.get_state())
-    # print(aeroplane_test.step(4, None))
-    # print(aeroplane_test.get_state())
-
-    multi_aeroplane_test = MultiAeroplane(
-        [0, 1, 2, 3],
-        [4, 5, 6, 7],
-    )
-    # print(multi_aeroplane_test.step([2, 3, 4, 5], None))
-    # print(multi_aeroplane_test.step([3, 4, 5, 6], None))
-    # print(multi_aeroplane_test.step([5, 6, 7, 8], None))
-    mask_array_np = np.random.randint(0, 2, (4, 8))
-    mask_array_tensor = th.tensor(mask_array_np).to(dtype=th.bool)
-
-    def test_actor(state, dag, mask):
-        return np.random.randint(0, 2, (mask.shape[0],))
-
-    for aeroplane in multi_aeroplane_test.aeroplanes:
-        aeroplane.register_network(actor_network=test_actor)
-
-    actions = multi_aeroplane_test.actor(
-        [0, 1, 2, 3],
-        [True, True, True, True, False, False, False, False],
-        mask_array_tensor,
-    )
-    output = multi_aeroplane_test.step(actions, None)
-    print(multi_aeroplane_test.get_state())
-    print(output)

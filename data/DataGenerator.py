@@ -30,17 +30,17 @@ class Problem:
         upper_tri = np.triu(
             np.random.randint(0, 2, size=(num_of_points, num_of_points)), k=1
         )
-        self.__edge_index = np.array(np.where(upper_tri == 1))
+        self.edge_index = np.array(np.where(upper_tri == 1))
 
         edge_attr = np.random.rand(upper_tri.sum())
-        self.__edge_attr = edge_attr
+        self.edge_attr = edge_attr
 
         node_attr = np.random.rand(num_of_points)
-        self.__node_attr = node_attr
+        self.node_attr = node_attr
 
     @property
     def weighted_edge_shortest_path(self):
-        return solve(self.__edge_index, self.__node_attr)
+        return solve(self.edge_index, self.node_attr)
 
     def to_data(self):
         """
@@ -52,8 +52,8 @@ class Problem:
                                 {end:path})}
         """
         return (
-            self.__edge_index,
-            np.expand_dims(self.__node_attr, axis=1),
+            self.edge_index,
+            np.expand_dims(self.node_attr, axis=1),
         ), self.weighted_edge_shortest_path[0]
 
 
