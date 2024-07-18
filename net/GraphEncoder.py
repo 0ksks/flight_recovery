@@ -6,14 +6,25 @@ from utils.constants import LayerType
 
 class GAT(torch.nn.Module):
     """
-    I've added 3 GAT implementations - some are conceptually easier to understand some are more efficient.
+    __init__:
+        **num_of_layers** = len(**num_heads_per_layer**) = len(**num_features_per_layer**) - 1
 
-    The most interesting and hardest one to understand is implementation #3.
-    Imp1 and imp2 differ in subtle details but are basically the same thing.
+        **num_features_per_layer** [0] = input_features
 
-    Tip on how to approach this:
-        understand implementation 2 first, check out the differences it has with imp1, and finally tackle imp #3.
+        **num_features_per_layer** [-1] = output_features
 
+    forward:
+        param: (edge_index[2,N], node_features[M,D_in])
+
+        **IMPORTANT**: param is **`a`** tuple, not **`two`** params
+
+        **N**: number of edges in graph
+
+        **M**: number of nodes in graph
+
+        **D_in**: number of input features in node
+
+        return: (node_features[M,D_out], edge_index[2,N])
     """
 
     def __init__(

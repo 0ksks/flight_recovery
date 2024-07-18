@@ -3,13 +3,16 @@ import networkx as nx
 import numpy as np
 
 
-def solve(edge_index: np.ndarray, node_attr: np.ndarray):
+def get_weight(edge: tuple[int, int], node_weight: np.ndarray, shortest):
+    if shortest:
+        return (1 - node_weight[edge[0]]) + (1 - node_weight[edge[1]])
+    return node_weight[edge[0]] + node_weight[edge[1]]
+
+
+def solve(edge_index: np.ndarray, node_attr: np.ndarray, shortest=True):
     G = nx.DiGraph()
 
-    def get_weight(edge: tuple[int, int], node_weight: np.ndarray):
-        return node_weight[edge[0]] + node_weight[edge[1]]
-
-    weight_fun = lambda u, v, d: get_weight((u, v), node_attr)
+    weight_fun = lambda u, v, d: get_weight((u, v), node_attr, shortest)
 
     # 添加带权重的节点
     for i, weight in enumerate(node_attr):
