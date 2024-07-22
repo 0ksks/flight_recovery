@@ -58,11 +58,12 @@ class Problem:
 
 
 if __name__ == "__main__":
-    problems = []
-    solutions = []
-    for _ in range(10):
-        problem, solution = Problem(np.random.randint(10, 21)).to_data()
-        problems.append(problem)
-        solutions.append(solution)
-    pickle.dump(problems, open("problems.pkl", "wb"))
-    pickle.dump(solutions, open("solutions.pkl", "wb"))
+    # problems = []
+    # solutions = []
+    # for _ in range(10):
+    #     problem, solution = Problem(np.random.randint(10, 21)).to_data()
+    #     problems.append(problem)
+    #     solutions.append(solution)
+    # pickle.dump(problems, open("problems.pkl", "wb"))
+    # pickle.dump(solutions, open("solutions.pkl", "wb"))
+    print(Problem(np.random.randint(10, 21)).to_data())
