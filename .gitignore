@@ -78,3 +78,5 @@ fabric.properties
 
 *.DS_Store
 test.py
+
+/__pycache__/
