@@ -2,13 +2,6 @@ from collections import defaultdict
 import torch as th
 
 
-def get_test(seed=0):
-    th.manual_seed(seed)
-    row = th.randint(5, 10, (1,))
-    col = th.randint(row, row + 5, (1,))
-    return th.randint(1, col + 1, (row, col)).to(th.float)
-
-
 class MultiAct:
     @staticmethod
     def __get_row_rank(input_tensor: th.Tensor) -> th.Tensor:
@@ -60,8 +53,15 @@ class MultiAct:
         return max_index
 
     @staticmethod
-    def test(seed):
-        test = get_test(seed)
+    def __get_test(seed: int = 0) -> th.Tensor:
+        th.manual_seed(seed)
+        row = th.randint(5, 10, (1,)).item()
+        col = th.randint(row, row + 5, (1,)).item()
+        return th.randint(1, col + 1, (row, col)).to(th.float)
+
+    @staticmethod
+    def test(seed: int):
+        test = MultiAct.__get_test(seed)
         row_rank = MultiAct.__get_row_rank(test)
         col_rank = MultiAct.__get_col_rank(test)
         max_index = th.tensor(
@@ -72,9 +72,20 @@ class MultiAct:
         )
         conflict_dict = MultiAct.__check_conflict(row_rank, col_rank, max_index)
         max_index = MultiAct.__transport_lower(row_rank, col_rank, max_index)
+        print(test)
+        print(row_rank)
+        print(col_rank)
+        print(conflict_dict)
+        print(max_index)
+        print(row_rank[th.arange(len(max_index)), max_index])
 
     @staticmethod
     def decide(action_score: th.Tensor) -> th.Tensor:
+        """
+        return the index of the best action in each row
+        :param action_score: (agent_num * action_num)
+        :return: max_index: (1 * agent_num)
+        """
         row_rank = MultiAct.__get_row_rank(action_score)
         col_rank = MultiAct.__get_col_rank(action_score)
         max_index = th.tensor(
@@ -84,4 +95,8 @@ class MultiAct:
             * action_score.size(0)
         )
         max_index = MultiAct.__transport_lower(row_rank, col_rank, max_index)
-        return max_index
+        return row_rank[th.arange(len(max_index)), max_index]
+
+
+if __name__ == "__main__":
+    MultiAct.test(0)
