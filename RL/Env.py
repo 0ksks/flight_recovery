@@ -1,6 +1,5 @@
 from typing import Union
 import numpy as np
-from numpy import array
 from RL import AdjList
 from MultiDecision import MultiAct
 import torch as th
@@ -9,39 +8,39 @@ import torch as th
 class DAGmap:
     def __init__(self, adj_list: AdjList, reward=1):
         self.adj_list = adj_list
-        self.n_nodes = len(self.adj_list)
+        self.n_states = len(self.adj_list)
         self.reward = reward
-        self.visited = np.zeros(self.n_nodes).astype(bool)
+        self.__visited = np.zeros(self.n_states).astype(bool)
         self.actor_network = None
         self.critic_network = None
 
-    def visit(self, node):
-        self.visited[node] = True
+    def visit(self, state):
+        self.__visited[state] = True
 
     def register_network(self, actor_network=None, critic_network=None):
         self.actor_network = actor_network
         self.critic_network = critic_network
 
-    def avail_next(self, node_idx: int) -> np.ndarray:
-        all_next = self.adj_list[node_idx]
-        return all_next[~self.visited[all_next]]
+    def avail_next(self, state_idx: int) -> np.ndarray:
+        all_next = self.adj_list[state_idx]
+        return all_next[~self.__visited[all_next]]
 
-    def actor(self, node: int, mask: list[bool]) -> tuple[list[int], list[float]]:
+    def actor(self, state: int, mask: list[bool]) -> tuple[list[int], list[float]]:
         assert (
             self.actor_network is not None
-        ), "actor network is not initialized, use `register_network()`"
-        return self.actor_network(node, mask)
+        ), "actor network is not initialized, use `self.register_network(actor_network, critic_network)`"
+        return self.actor_network(state, mask)
 
-    def critic(self, node: int, action: int) -> float:
+    def critic(self, state: int, action: int) -> float:
         assert (
             self.critic_network is not None
-        ), "critic network is not initialized, use `register_network()`"
-        return self.critic_network(node, action)
+        ), "critic network is not initialized, use `self.register_network(actor_network, critic_network)`"
+        return self.critic_network(state, action)
 
     def step(self, action_array: list[int]):
         """
         :param action_array: (1 * action_indices)
-        :return: reward_array, terminated_array, next_step_array
+        :return: reward_array, terminated_array, next_state_array
         """
         self.visit(action_array)
         terminated_array = [
@@ -53,109 +52,176 @@ class DAGmap:
         return reward_array, terminated_array, action_array
 
     def get_state(self):
-        """visited node list[bool]"""
-        return self.visited
+        """visited state list[bool]"""
+        return self.__visited
 
 
 class Aeroplane:
-    def __init__(self, start_node: int, end_node: int, reward=1, info=None):
-        self.start_node = start_node
-        self.end_node = end_node
-        self.current_node = self.start_node
+    def __init__(self, start_state: int, end_state: int, reward=1, info=None):
+        self.__start_state = start_state
+        self.__end_state = end_state
+        self.__current_state = self.__start_state
         self.reward = reward
         self.info = info
-        self.actor_network = None
-        self.critic_network = None
+        self.__actor_network = None
+        self.__critic_network = None
 
     def register_network(self, actor_network=None, critic_network=None):
-        self.actor_network = actor_network
-        self.critic_network = critic_network
+        self.__actor_network = actor_network
+        self.__critic_network = critic_network
 
-    def actor(self, node: int, mask: list[bool]) -> list[float]:
+    def actor(
+        self, aeroplane_state: int, dag_state: list[bool], mask: list[bool]
+    ) -> list[float]:
         assert (
-            self.actor_network is not None
-        ), "actor network is not initialized, use `register_network()`"
-        return self.actor_network(node, mask)
+            self.__actor_network is not None
+        ), "actor network is not initialized, use `self.register_network(actor_network, critic_network)`"
+        return self.__actor_network(aeroplane_state, dag_state, mask)
 
-    def critic(self, node: int, action: int) -> float:
+    def critic(self, aeroplane_state: int, dag_state: list[bool], action: int) -> float:
         assert (
-            self.critic_network is not None
-        ), "critic network is not initialized, use `register_network()`"
-        return self.critic_network(node, action)
+            self.__critic_network is not None
+        ), "critic network is not initialized, use `self.register_network(actor_network, critic_network)`"
+        return self.__critic_network(aeroplane_state, dag_state, action)
 
-    def step(self, node: int):
-        self.current_node = node
+    def step(
+        self,
+        aeroplane_action: int,
+        dag_state: list[bool],
+    ):
+        self.__current_state = aeroplane_action
         reward = self.reward
-        terminated = self.current_node == self.end_node
+        terminated = self.__current_state == self.__end_state
         return reward, terminated
 
     def get_state(self):
-        """current node int"""
-        return self.current_node
+        """current state int"""
+        return self.__current_state
 
 
 class MultiAeroplane:
     def __init__(
         self,
-        start_node_array: Union[list[int], th.Tensor],
-        end_node_array: Union[list[int], th.Tensor],
+        start_state_array: Union[list[int], th.Tensor],
+        end_state_array: Union[list[int], th.Tensor],
         reward_array: Union[list, th.Tensor, int] = 1,
         info_array=None,
     ):
         if not isinstance(reward_array, list):
-            reward_array = [reward_array] * len(start_node_array)
+            reward_array = [reward_array] * len(start_state_array)
         if info_array is None:
-            info_array = [None] * len(start_node_array)
+            info_array = [None] * len(start_state_array)
         self.aeroplanes = [
-            Aeroplane(start_node, end_node, reward, info)
-            for start_node, end_node, reward, info in zip(
-                start_node_array, end_node_array, reward_array, info_array
+            Aeroplane(start_state, end_state, reward, info)
+            for start_state, end_state, reward, info in zip(
+                start_state_array, end_state_array, reward_array, info_array
             )
         ]
 
     def actor(
         self,
-        node_array: Union[list[int], th.Tensor],
-        mask_array: Union[list[bool], th.Tensor],
+        aeroplane_state_array: Union[list[int], th.Tensor],
+        dag_state: Union[list[bool], th.Tensor],
+        mask_array: Union[list[list[bool]], th.Tensor],
     ) -> th.Tensor:
         """
         return the index of the best action in each row
         :return: max_index: (1 * agent_num)
         """
         prob = []
-        for aeroplane, node, mask in zip(self.aeroplanes, node_array, mask_array):
-            prob.append(aeroplane.actor(node, mask))
+        for aeroplane, aeroplane_state, dag_state, mask in zip(
+            self.aeroplanes, aeroplane_state_array, dag_state, mask_array
+        ):
+            prob.append(aeroplane.actor(aeroplane_state, dag_state, mask))
         prob = th.tensor(prob)
         decisions = MultiAct.decide(prob)
         return decisions
 
     def critic(
         self,
-        node_array: Union[list[int], th.Tensor],
-        action_list: Union[list[int], th.Tensor],
-    ):
+        aeroplane_state_array: Union[list[int], th.Tensor],
+        dag_state: Union[list[bool], th.Tensor],
+        action_array: Union[list[int], th.Tensor],
+    ) -> th.Tensor:
         q_value = []
-        for aeroplane, node, action in zip(self.aeroplanes, node_array, action_list):
-            q_value.append(aeroplane.critic(node, action))
+        for aeroplane, aeroplane_state, dag_state, action in zip(
+            self.aeroplanes, aeroplane_state_array, dag_state, action_array
+        ):
+            q_value.append(aeroplane.critic(aeroplane_state, dag_state, action))
         q_value = th.tensor(q_value)
         return q_value
 
+    def step(
+        self,
+        aeroplane_action_array: Union[list[int], th.Tensor],
+        dag_state: Union[list[bool], th.Tensor],
+    ):
+        """
+        :param aeroplane_action_array:
+        :param dag_state:
+        :return: [[reward, terminated]*n_aeroplanes]
+        """
+        # reward_array = []
+        # terminated_array = []
+        # for aeroplane, aeroplane_action in zip(self.aeroplanes, aeroplane_action_array):
+        #     reward, terminated = aeroplane.step(aeroplane_action, dag_state)
+        #     reward_array.append(reward)
+        #     terminated_array.append(terminated)
+        # result = [reward_array, terminated_array]
+        # tensor_result = th.tensor(result).transpose(0, 1)
+        # return tensor_result
+        result = list(
+            map(
+                lambda tup: tup[0].step(tup[1], dag_state),
+                zip(self.aeroplanes, aeroplane_action_array),
+            )
+        )
+        result = th.tensor(result)
+        return result
+
+    def get_state(self):
+        # states = []
+        # for aeroplane in self.aeroplanes:
+        #     states.append(aeroplane.get_state())
+        # states = th.tensor(states).unsqueeze(0).transpose(0, 1)
+        states = list(map(lambda x: x.get_state(), self.aeroplanes))
+        states = th.tensor(states).unsqueeze(0).transpose(0, 1)
+        return states
+
 
 if __name__ == "__main__":
-    dag = DAGmap(
-        {
-            0: array([1, 2]).astype(int),
-            1: array([2, 3]).astype(int),
-            2: array([4]).astype(int),
-            3: array([4]).astype(int),
-            4: array([]).astype(int),
-        }
+    # dag = DAGmap(
+    #     {
+    #         0: array([1, 2]).astype(int),
+    #         1: array([2, 3]).astype(int),
+    #         2: array([4]).astype(int),
+    #         3: array([4]).astype(int),
+    #         4: array([]).astype(int),
+    #     }
+    # )
+    # # dag.visited[1] = True
+    # # dag.visited[2] = True
+    # dag.step([0])
+    # res = dag.step([1, 2])
+    # print(res)
+    # res = dag.step([4])
+    # print(res)
+    # print(dag.avail_next(0))
+
+    # aeroplane_test = Aeroplane(1, 4)
+    # print(aeroplane_test.get_state())
+    # print(aeroplane_test.step(2, None))
+    # print(aeroplane_test.get_state())
+    # print(aeroplane_test.step(3, None))
+    # print(aeroplane_test.get_state())
+    # print(aeroplane_test.step(4, None))
+    # print(aeroplane_test.get_state())
+
+    multi_aeroplane_test = MultiAeroplane([1, 2, 3, 4], [5, 6, 7, 8])
+    # print(multi_aeroplane_test.step([2, 3, 4, 5], None))
+    # print(multi_aeroplane_test.step([3, 4, 5, 6], None))
+    # print(multi_aeroplane_test.step([5, 6, 7, 8], None))
+    multi_aeroplane_test.actor(
+        [1, 2, 3, 4], [True, True, False, False], [True, True, False, False]
     )
-    # dag.visited[1] = True
-    # dag.visited[2] = True
-    dag.step([0])
-    res = dag.step([1, 2])
-    print(res)
-    res = dag.step([4])
-    print(res)
-    print(dag.avail_next(0))
+    print(multi_aeroplane_test.get_state())
