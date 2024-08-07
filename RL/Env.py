@@ -1,4 +1,3 @@
-import random
 from typing import Union
 import numpy as np
 from RL import AdjList
@@ -15,8 +14,10 @@ class DAGmap:
         self.actor_network = None
         self.critic_network = None
 
-    def visit(self, state):
+    def visit(self, state) -> bool:
+        updated = not self.__visited[np.argwhere(state == 1)].all()
         self.__visited[state] = True
+        return updated
 
     def register_network(self, actor_network=None, critic_network=None):
         self.actor_network = actor_network
@@ -38,19 +39,25 @@ class DAGmap:
         ), "critic network is not initialized, use `self.register_network(actor_network, critic_network)`"
         return self.critic_network(state, action)
 
-    def step(self, action_array: list[int]):
+    def step(self, action_array: Union[list[int], np.ndarray, th.Tensor]):
         """
-        :param action_array: (1 * action_indices)
+        :param action_array: (1 * num_actions) (01)
         :return: reward_array, terminated_array, next_state_array
         """
-        self.visit(action_array)
+        visited_array = self.get_state().copy()
+        updated = self.visit(action_array)
         terminated_array = [
-            self.avail_next(action).size == 0 for action in action_array
+            self.avail_next(action_idx).size == 0
+            for action_idx, _ in enumerate(action_array)
         ]
-        reward_array = [
-            0 if terminated else self.reward for terminated in terminated_array
-        ]
-        return reward_array, terminated_array, action_array
+        if updated:
+            reward_array = [
+                self.reward if action == 1 and not visited else 0
+                for action, visited in zip(action_array, visited_array)
+            ]
+        else:
+            reward_array = [0 for _ in action_array]
+        return sum(reward_array), terminated_array, action_array
 
     def get_state(self):
         """visited state list[bool]"""
@@ -91,12 +98,14 @@ class Aeroplane:
         dag_state: list[bool],
     ):
         self.current_state = aeroplane_action
-        reward = self.reward
+        reward = self.reward if self.current_state == self.end_state else 0
         terminated = self.current_state == self.end_state
         return reward, terminated
 
     def get_state(self):
         """current state int"""
+        if not isinstance(self.current_state, int):
+            return int(self.current_state)
         return self.current_state
 
 
@@ -161,7 +170,7 @@ class MultiAeroplane:
     def step(
         self,
         aeroplane_action_array: Union[list[int], th.Tensor],
-        dag_state: Union[list[bool], th.Tensor],
+        dag_state: Union[list[bool], th.Tensor, None],
     ):
         """
         :param aeroplane_action_array:
