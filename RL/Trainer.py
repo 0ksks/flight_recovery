@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from typing import Union
+
 from Env import DAGmap, MultiAeroplane
 import torch as th
 import numpy as np
@@ -12,16 +14,11 @@ class Experience:
     done: th.Tensor
 
 
-class Rollout:
+class AeroplanesRollout:
     def __init__(self, dag: DAGmap, multiAeroplane: MultiAeroplane):
         self.dag = dag
         self.multiAeroplane = multiAeroplane
         self.__init_start_node()
-
-    def dag_network_register(self, actor_network, critic_network):
-        self.dag.register_network(
-            actor_network=actor_network, critic_network=critic_network
-        )
 
     def multi_aeroplane_network_register(
         self, actor_network_array, critic_network_array
@@ -42,15 +39,15 @@ class Rollout:
     def rollout_episode(
         self,
         episode_steps: int,
-    ) -> tuple[list[Experience], list[Experience]]:
+    ) -> list[Experience]:
         """
         :param episode_steps:
-        :return: DAG episode, aeroplane episode
+        :return: aeroplane episode
         """
         step = 0
-        dag_episode = []
         aeroplane_episode = []
-        while step < episode_steps:
+        done = False
+        while step < episode_steps and not done:
             dag_state = self.dag.get_state().copy()
             aeroplane_state_array_tensor = self.multiAeroplane.get_state().flatten()
             dag_state[aeroplane_state_array_tensor] = True
@@ -63,8 +60,8 @@ class Rollout:
                 aeroplane_mask_array.append(mask.tolist())
             aeroplane_action_array_tensor = self.multiAeroplane.actor(
                 aeroplane_state_array=aeroplane_state_array_tensor,
-                dag_state=dag_state,
-                mask_array=aeroplane_mask_array,
+                dag_state=th.tensor(dag_state),
+                mask_array=th.tensor(aeroplane_mask_array),
             )
 
             # dag acts
@@ -80,15 +77,6 @@ class Rollout:
                 aeroplane_reward_terminated_array[:, 1],
             )
 
-            # get dag info
-            dag_reward, dag_terminated, dag_new_state = self.dag.step(dag_action)
-
-            # transform into Tensor
-            dag_state_tensor = th.tensor(dag_state).to(th.int)
-            dag_action_tensor = th.tensor(dag_action).to(th.int)
-            dag_reward_tensor = th.tensor(dag_reward)
-            dag_terminated_tensor = th.tensor(dag_terminated).to(th.int)
-
             # store experience
             aeroplane_episode.append(
                 Experience(
@@ -98,23 +86,43 @@ class Rollout:
                     aeroplane_terminated_array_tensor,
                 )
             )
-            dag_episode.append(
-                Experience(
-                    dag_state_tensor,
-                    dag_action_tensor,
-                    dag_reward_tensor,
-                    dag_terminated_tensor,
-                )
-            )
 
             # update step
             step += 1
 
             # termination check
-            if dag_terminated_tensor.all():
-                break
+            done = self.dag.get_state().all()
 
-        return dag_episode, aeroplane_episode
+        return aeroplane_episode
+
+
+class DAGRollout:
+    def __init__(self, dag: DAGmap, start_node: Union[int, th.Tensor]):
+        self.dag = dag
+        self.start_node = start_node
+        self.current_node = self.start_node
+
+    def dag_network_register(self, actor_network, critic_network):
+        self.dag.register_network(
+            actor_network=actor_network, critic_network=critic_network
+        )
+
+    def rollout_episode(self, episode_steps: int) -> list[Experience]:
+        step = 0
+        dag_episode = []
+        done = False
+        while step < episode_steps and not done:
+            state = self.current_node
+            mask = self.dag.avail_next(state)
+            prob = self.dag.actor(th.tensor(state), th.tensor(mask))
+            action = int(np.array(prob).argmax())
+            reward, done, next_state = self.dag.step([action])
+            reward = th.Tensor(reward[0])
+            done = th.Tensor(done[0])
+            action = th.Tensor(action)
+            self.current_node = next_state[0]
+            dag_episode.append(Experience(state, action, reward, done))
+        return dag_episode
 
 
 if __name__ == "__main__":
@@ -159,17 +167,13 @@ if __name__ == "__main__":
         prob[~mask_] = 0
         return prob
 
-    for aeroplane in multi_aeroplane_test.aeroplanes:
-        aeroplane.register_network(actor_network=aeroplane_test_actor)
-
-    rollout_test = Rollout(dag, multi_aeroplane_test)
+    rollout_test = AeroplanesRollout(dag, multi_aeroplane_test)
     multi_aeroplane_actor = [aeroplane_test_actor for _ in range(aeroplane_num)]
     multi_aeroplane_critic = [None for _ in range(aeroplane_num)]
     rollout_test.multi_aeroplane_network_register(
         multi_aeroplane_actor, multi_aeroplane_critic
     )
-    dag_episode, aeroplane_episode = rollout_test.rollout_episode(
+    aeroplane_episode = rollout_test.rollout_episode(
         episode_steps=8,
     )
-    print(*dag_episode, sep="\n")
     print(*aeroplane_episode, sep="\n")

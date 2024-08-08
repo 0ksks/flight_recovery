@@ -27,13 +27,17 @@ class DAGmap:
         all_next = self.adj_list[state_idx]
         return all_next[~self.__visited[all_next]]
 
-    def actor(self, state: int, mask: list[bool]) -> list[float]:
+    def actor(
+        self, state: Union[int, th.Tensor], mask: Union[list[bool], th.Tensor]
+    ) -> Union[list[float], th.Tensor]:
         assert (
             self.actor_network is not None
         ), "actor network is not initialized, use `self.register_network(actor_network, critic_network)`"
         return self.actor_network(state, mask)
 
-    def critic(self, state: int, action: int) -> float:
+    def critic(
+        self, state: Union[int, th.Tensor], action: Union[int, th.Tensor]
+    ) -> Union[float, th.Tensor]:
         assert (
             self.critic_network is not None
         ), "critic network is not initialized, use `self.register_network(actor_network, critic_network)`"
