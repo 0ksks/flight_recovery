@@ -1,14 +1,18 @@
 from typing import Union
 from collections import defaultdict
+import gymnasium as gym
 import numpy as np
 import torch as th
 
 from .MultiDecision import MultiAct
 
 
-class DAGmap:
+class DAGmap(gym.Env):
     def __init__(
-        self, adj_list: dict[int, Union[list[int], np.ndarray, th.Tensor]], reward=1
+        self,
+        adj_list: dict[int, Union[list[int], np.ndarray, th.Tensor]],
+        reward=1,
+        device=th.device("cpu"),
     ):
         self.adj_list = adj_list
         self.n_states = len(self.adj_list)
@@ -16,6 +20,7 @@ class DAGmap:
         self.__visited = np.zeros(self.n_states).astype(bool)
         self.actor_network = None
         self.critic_network = None
+        self.device = device
 
     @staticmethod
     def adj_list_2_edge_idx(
@@ -80,8 +85,7 @@ class DAGmap:
 
     def step(self, action_array: Union[list[int], np.ndarray, th.Tensor]):
         """
-        :param action_array: (1 * num_actions) (01)
-        :return: reward_array, terminated_array, next_state_array
+        :return: observation, reward, terminated, truncated, info
         """
         visited_array = self.get_state().copy()
         updated = self.visit(action_array)
@@ -96,7 +100,14 @@ class DAGmap:
             ]
         else:
             reward_array = [0 for _ in action_array]
-        return sum(reward_array), terminated_array, action_array
+        return action_array, sum(reward_array), terminated_array, False, {}
+
+    def reset(self):
+        self.__visited = np.zeros(self.n_states).astype(bool)
+        return self.__visited, {}
+
+    def _reset(self, tensordict):
+        return self.reset()
 
     def get_state(self):
         """visited state list[bool]"""

@@ -1,5 +1,4 @@
 import pickle
-import networkx as nx
 import numpy as np
 
 
@@ -10,6 +9,8 @@ def get_weight(edge: tuple[int, int], node_weight: np.ndarray, shortest):
 
 
 def solve(edge_index: np.ndarray, node_attr: np.ndarray, shortest=True):
+    import networkx as nx
+
     G = nx.DiGraph()
 
     weight_fun = lambda u, v, d: get_weight((u, v), node_attr, shortest)
