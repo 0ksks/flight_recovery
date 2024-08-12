@@ -5,9 +5,10 @@ from torchrl.envs.utils import ExplorationType
 #    (experience.total_frames/experience.frames_per_batch)
 #  * train.num_epochs
 #  * (experience.frames_per_batch/experience.sub_batch_size)
+
 #  真正送去网络更新的 batch_size 就是 experience.sub_batch_size ，其他的是强化学习里面的值，
 #  不过根据上面几个等式，如果 experience.sub_batch_size 比较大，那 experience.frames_per_batch
-#  就要相应地变大一点，从而 experience.total_frames 也要变大一点
+#  就要相应地变大一点避免除出来太小，从而 experience.total_frames 也要变大一点
 
 #  网络输入：2^node_num 种， 即 node_num 位的二进制数
 #  网络输出：node_num 种， 即 node_num 长的 one_hot
