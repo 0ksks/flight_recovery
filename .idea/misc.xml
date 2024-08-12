@@ -7,5 +7,5 @@
     <option name="pathToExecutable" value="/usr/local/Caskroom/miniconda/base/envs/SPAGAN/bin/black" />
     <option name="sdkName" value="Python 3.12" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="torchrl" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="torch_rl (3)" project-jdk-type="Python SDK" />
 </project>

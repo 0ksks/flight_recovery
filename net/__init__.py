@@ -6,3 +6,5 @@ def activation_mapping_func(activation: str):
         return nn.ReLU()
     elif activation == "sigmoid":
         return nn.Sigmoid()
+    elif activation == "identity":
+        return nn.Identity()

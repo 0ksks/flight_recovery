@@ -77,6 +77,8 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 *.DS_Store
-test.py
+testRlTraining.py
 
 /__pycache__/
+
+*test*.py
