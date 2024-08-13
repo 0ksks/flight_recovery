@@ -176,11 +176,13 @@ class Trainer:
         self,
     ):
         self.logs = defaultdict(list)
+        heading_str = "eval cumulative reward(init) | eval step count | avg reward(init) | step count max | lr policy"
+        print(heading_str)
         pbar = tqdm(total=self.config_dict["experience"]["total_frames"])
-        eval_str = ""
 
         # We iterate over the collector until it reaches the total number of frames it was
         # designed to collect:
+
         for i, tensordict_data in enumerate(self.collector):
             # we now have a batch of data to work with. Let's learn something from it.
             for _ in range(self.config_dict["train"]["num_epochs"]):
@@ -219,11 +221,8 @@ class Trainer:
 
             self.logs["reward"].append(tensordict_data["next", "reward"].mean().item())
             pbar.update(tensordict_data.numel())
-            cum_reward_str = f"average reward={self.logs['reward'][-1]: 4.4f} (init={self.logs['reward'][0]: 4.4f})"
             self.logs["step_count"].append(tensordict_data["step_count"].max().item())
-            stepcount_str = f"step count (max): {self.logs['step_count'][-1]}"
             self.logs["lr"].append(self.optimizer.param_groups[0]["lr"])
-            lr_str = f"lr policy: {self.logs['lr'][-1]: 4.4f}"
             if i % 10 == 0:
                 # We evaluate the policy once every 10 batches of data.
                 # Evaluation is rather simple: execute the policy without exploration
@@ -247,14 +246,23 @@ class Trainer:
                     self.logs["eval step_count"].append(
                         eval_rollout["step_count"].max().item()
                     )
-                    eval_str = (
-                        f"eval cumulative reward: {self.logs['eval reward (sum)'][-1]: 4.4f} "
-                        f"(init: {self.logs['eval reward (sum)'][0]: 4.4f}), "
-                        f"eval step-count: {self.logs['eval step_count'][-1]}"
-                    )
                     del eval_rollout
+            # pbar.set_description(
+            #     ", ".join([eval_str, cum_reward_str, stepcount_str, lr_str])
+            # )
+            formatter_fun = lambda num: str(round(num, 4))
             pbar.set_description(
-                ", ".join([eval_str, cum_reward_str, stepcount_str, lr_str])
+                "["
+                + " | ".join(
+                    [
+                        f"{formatter_fun(self.logs['eval reward (sum)'][-1])}({formatter_fun(self.logs['eval reward (sum)'][0])})",
+                        formatter_fun(self.logs["eval step_count"][-1]),
+                        f"{formatter_fun(self.logs['reward'][-1])}({formatter_fun(self.logs['reward'][0])})",
+                        formatter_fun(self.logs["step_count"][-1]),
+                        formatter_fun(self.logs["lr"][-1]),
+                    ]
+                )
+                + "]"
             )
 
             # We're also using a learning rate scheduler. Like the gradient clipping,
