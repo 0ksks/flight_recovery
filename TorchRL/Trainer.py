@@ -238,7 +238,6 @@ class Trainer:
                     eval_rollout = self.env.rollout(
                         self.config_dict["test"]["num_steps"], self.policy_module
                     )
-                    print(eval_rollout["next", "reward"])
                     self.logs["eval reward"].append(
                         eval_rollout["next", "reward"].mean().item()
                     )
@@ -278,4 +277,9 @@ class Trainer:
         plt.subplot(2, 2, 4)
         plt.plot(logs["eval step_count"])
         plt.title("Max step count (test)")
-        plt.show()
+        from datetime import datetime
+
+        now = datetime.now()
+
+        formatted_date = now.strftime("%Y_%m_%d[%H:%M:%S]")
+        plt.savefig(f"TorchRL/result/{formatted_date}.png")

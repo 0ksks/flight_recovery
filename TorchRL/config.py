@@ -16,7 +16,7 @@ from torchrl.envs.utils import ExplorationType
 config_dict = {
     "graph": {"node_num": 20},  # 有向无环图的结点数
     "network": {
-        "mlp_hidden_arch": [64, 64],  # MLP 隐藏层结构
+        "mlp_hidden_arch": [128, 256, 128],  # MLP 隐藏层结构
         "lr": 3e-4,
     },
     "train": {

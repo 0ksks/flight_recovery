@@ -3,3 +3,4 @@ from TorchRL.Trainer import Trainer
 
 trainer = Trainer(config_dict)
 trainer.train()
+trainer.plot_logs()
