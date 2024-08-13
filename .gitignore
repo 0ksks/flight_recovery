@@ -78,7 +78,7 @@ fabric.properties
 
 *.DS_Store
 
-/__pycache__/
+**/__pycache__/
 
 
 # Custom ignore files
