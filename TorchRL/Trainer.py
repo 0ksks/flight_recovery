@@ -247,9 +247,6 @@ class Trainer:
                         eval_rollout["step_count"].max().item()
                     )
                     del eval_rollout
-            # pbar.set_description(
-            #     ", ".join([eval_str, cum_reward_str, stepcount_str, lr_str])
-            # )
             formatter_fun = lambda num: str(round(num, 4))
             pbar.set_description(
                 "["
