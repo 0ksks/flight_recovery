@@ -16,14 +16,14 @@ from torchrl.envs.utils import ExplorationType
 config_dict = {
     "graph": {"node_num": 20},  # 有向无环图的结点数
     "network": {
-        "mlp_hidden_arch": [128, 256, 128],  # MLP 隐藏层结构
+        "mlp_hidden_arch": [256, 256, 256],  # MLP 隐藏层结构
         "lr": 3e-4,
     },
     "train": {
         "num_epochs": 10,
         "sub_batch_size": 64,
         "max_grad_norm": 1.0,
-        "eval_exploration_type": ExplorationType.RANDOM,
+        "eval_exploration_type": ExplorationType.MODE,
     },
     "test": {
         "num_steps": 1_000,  # 测试步数
@@ -38,7 +38,7 @@ config_dict = {
         ),
     },
     "experience": {
-        "total_frames": 50_000,
+        "total_frames": 1_000_000,
         "frames_per_batch": 1_000,
         "sub_batch_size": 64,
         "init_stats_num_iter": 1_000,  # 初始化步数
